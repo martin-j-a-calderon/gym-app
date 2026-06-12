@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#1C1B1A">
+<title>Outdoor Gym</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; }
+  body { background: #EDEAE3; color: #1C1B1A; font-family: Archivo, system-ui, sans-serif; min-height: 100vh; }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1C1B1A; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  header { background: #1C1B1A; color: #EDEAE3; padding: 20px 16px 16px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  h1 { font-family: 'Archivo Black', Archivo, sans-serif; font-size: 26px; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.01em; }
+  .sub { margin: 4px 0 14px; font-size: 13px; opacity: 0.7; }
+
+  .weektabs { display: flex; gap: 8px; }
+  .weektabs button { flex: 1; padding: 8px 0; border-radius: 8px; font-weight: 700; font-size: 14px; border: 2px solid #4a4845; background: transparent; color: #EDEAE3; }
+  .weektabs button.active { border-color: #3EB8B3; background: #3EB8B3; color: #1C1B1A; }
+  .weektabs small { display: block; font-size: 10px; font-weight: 400; opacity: 0.8; }
+
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 96px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .pill { padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 2px solid #1C1B1A; background: transparent; color: #1C1B1A; }
+  .pill.active { background: #1C1B1A; color: #EDEAE3; }
+  .savestatus { margin-left: auto; font-size: 12px; font-weight: 600; }
+  .savestatus.ok { color: #5E9E4D; }
+  .savestatus.bad { color: #a33; }
+
+  .meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .meta b { font-size: 15px; }
+  .meta span { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .hint { font-size: 12px; opacity: 0.6; margin: 0 0 12px; }
+
+  .card { background: #FBFAF7; border: 2px solid #1C1B1A; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .card.done { opacity: 0.75; }
+  .cardtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .exname { font-weight: 700; font-size: 16px; }
+  .station { font-size: 12px; opacity: 0.6; }
+  .target { white-space: nowrap; text-align: right; }
+  .target b { font-family: 'Archivo Black', sans-serif; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .target span { font-size: 12px; opacity: 0.6; }
+
+  .bars { display: flex; gap: 6px; margin-top: 10px; }
+  .bars button { flex: 1; height: 32px; border-radius: 999px; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; border: 2px solid #1C1B1A; background: transparent; color: transparent; transition: background 0.15s, border-color 0.15s; }
+  .bars button.logged { color: #1C1B1A; }
+  .bars button.below { border-style: dashed; }
+  .bars button.sel { border-color: #1C1B1A !important; }
+
+  .adjuster { display: flex; align-items: center; gap: 8px; margin-top: 10px; background: #EDEAE3; border-radius: 10px; padding: 8px 10px; }
+  .adjuster .lbl { font-size: 12px; font-weight: 600; flex: 1; }
+  .adjuster .step { width: 40px; height: 36px; border-radius: 8px; border: 2px solid #1C1B1A; background: #FBFAF7; font-size: 18px; font-weight: 700; }
+  .adjuster .val { width: 56px; text-align: center; font-family: 'Archivo Black', sans-serif; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .adjuster .rm { height: 36px; padding: 0 10px; border-radius: 8px; border: 2px solid #1C1B1A; background: transparent; font-size: 12px; font-weight: 600; }
+
+  .finish { width: 100%; margin-top: 8px; padding: 14px 0; border-radius: 12px; font-family: 'Archivo Black', sans-serif; font-size: 16px; text-transform: uppercase; border: 2px solid #1C1B1A; background: #1C1B1A; color: #EDEAE3; }
+  .finish:disabled { background: #d8d4cb; color: #8a867d; }
+  .finish.all { background: #5E9E4D; }
+
+  .empty { background: #FBFAF7; border: 2px dashed #1C1B1A; border-radius: 12px; padding: 24px; text-align: center; font-size: 14px; }
+  .hrow { display: flex; justify-content: space-between; align-items: center; }
+  .hbig { font-family: 'Archivo Black', sans-serif; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .hsm { font-size: 12px; opacity: 0.6; }
+
+  .backup { margin-top: 24px; border-top: 2px solid #1C1B1A; padding-top: 16px; }
+  .backup h2 { font-size: 14px; text-transform: uppercase; font-family: 'Archivo Black', sans-serif; margin-bottom: 8px; }
+  .backup textarea { width: 100%; height: 72px; border: 2px solid #1C1B1A; border-radius: 8px; font-family: monospace; font-size: 11px; padding: 8px; background: #FBFAF7; }
+  .backup .row { display: flex; gap: 8px; margin-top: 8px; }
+  .backup .note { font-size: 12px; opacity: 0.6; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Outdoor Gym</h1>
+    <p class="sub">4-week circuit &middot; 2&ndash;3 sessions per week &middot; 60s rest between rounds</p>
+    <div class="weektabs" id="weektabs" role="tablist" aria-label="Training week"></div>
+  </div>
+</header>
+<main>
+  <div class="toolbar">
+    <button class="pill" id="tab-today">Today's circuit</button>
+    <button class="pill" id="tab-history">History (0)</button>
+    <span class="savestatus" id="savestatus"></span>
+  </div>
+  <div id="view"></div>
+  <div class="backup">
+    <h2>Backup</h2>
+    <textarea id="backupbox" aria-label="Backup data" placeholder="Tap Export to copy your data, or paste a backup here and tap Import."></textarea>
+    <div class="row">
+      <button class="pill" id="btn-export">Export</button>
+      <button class="pill" id="btn-import">Import</button>
+    </div>
+    <p class="note">Data lives in this browser (localStorage). Export occasionally if you clear browser data or switch phones.</p>
+  </div>
+</main>
+
+<script>
+const WEEK_META = {
+  1: { rounds: 3, bonus: 0, label: "Base volume" },
+  2: { rounds: 4, bonus: 0, label: "Add a round" },
+  3: { rounds: 4, bonus: 2, label: "Add reps" },
+  4: { rounds: 5, bonus: 2, label: "Peak week" },
+};
+const EXERCISES = [
+  { id: "pullups", name: "Pull-ups", station: "High bar", base: 5, color: "#E0589A" },
+  { id: "dips", name: "Dips", station: "Pink parallel bars", base: 6, color: "#E0589A" },
+  { id: "pushups", name: "Decline push-ups", station: "Angled bench", base: 10, color: "#3EB8B3" },
+  { id: "rows", name: "Ring rows", station: "Rings on blue rig", base: 10, color: "#3EB8B3" },
+  { id: "stepups", name: "Step-ups", station: "Low benches", base: 10, perLeg: true, color: "#5E9E4D" },
+  { id: "splits", name: "Split squats", station: "Rear foot on bench", base: 8, perLeg: true, color: "#5E9E4D" },
+  { id: "situps", name: "Incline sit-ups", station: "Angled bench", base: 12, color: "#D8A62A" },
+  { id: "raises", name: "Hanging knee raises", station: "Monkey bars", base: 10, color: "#D8A62A" },
+];
+const KEY = "outdoor-gym-tracker-v1";
+
+let state = { week: 1, setLog: {}, sessions: [] };
+let view = "today";
+let selected = null;
+
+const target = (ex) => ex.base + WEEK_META[state.week].bonus;
+const rounds = () => WEEK_META[state.week].rounds;
+const logFor = (id) => (state.setLog[id] || []).slice(0, rounds());
+const doneSets = () => EXERCISES.reduce((s, ex) => s + logFor(ex.id).length, 0);
+const totalSets = () => EXERCISES.length * rounds();
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      state = { week: d.week || 1, setLog: d.setLog || d.inProgress || {}, sessions: d.sessions || [] };
+    }
+  } catch (e) {}
+}
+function save() {
+  const el = document.getElementById("savestatus");
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    el.textContent = "Saved \u2713";
+    el.className = "savestatus ok";
+  } catch (e) {
+    el.textContent = "Save failed \u2014 export a backup";
+    el.className = "savestatus bad";
+  }
+}
+function set(patch) { Object.assign(state, patch); save(); render(); }
+
+function tapSet(exId, i) {
+  const ex = EXERCISES.find((e) => e.id === exId);
+  const arr = logFor(exId);
+  if (i < arr.length) {
+    selected = (selected && selected.id === exId && selected.idx === i) ? null : { id: exId, idx: i };
+    render();
+  } else {
+    selected = null;
+    set({ setLog: { ...state.setLog, [exId]: [...arr, target(ex)] } });
+  }
+}
+function adjust(exId, idx, d) {
+  const arr = [...logFor(exId)];
+  arr[idx] = Math.max(1, arr[idx] + d);
+  set({ setLog: { ...state.setLog, [exId]: arr } });
+}
+function removeSet(exId, idx) {
+  selected = null;
+  set({ setLog: { ...state.setLog, [exId]: logFor(exId).filter((_, i) => i !== idx) } });
+}
+function finish() {
+  if (doneSets() === 0) return;
+  const session = {
+    date: new Date().toISOString(),
+    week: state.week,
+    setsDone: doneSets(),
+    totalSets: totalSets(),
+    reps: EXERCISES.reduce((s, ex) => s + logFor(ex.id).reduce((a, b) => a + b, 0), 0),
+    hitTargets: EXERCISES.every((ex) => logFor(ex.id).length === rounds() && logFor(ex.id).every((r) => r >= target(ex))),
+  };
+  selected = null;
+  view = "history";
+  set({ sessions: [session, ...state.sessions], setLog: {} });
+}
+
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (k === "style") n.style.cssText = v;
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids) n.append(kid);
+  return n;
+}
+
+function render() {
+  // Week tabs
+  const wt = document.getElementById("weektabs");
+  wt.replaceChildren(...[1, 2, 3, 4].map((w) => {
+    const count = state.sessions.filter((s) => s.week === w).length;
+    const b = el("button", {
+      class: w === state.week ? "active" : "", role: "tab",
+      "aria-selected": w === state.week,
+      onclick: () => { selected = null; set({ week: w }); },
+    });
+    b.innerHTML = "W" + w + "<small>" + count + "/3 done</small>";
+    return b;
+  }));
+
+  document.getElementById("tab-today").className = "pill" + (view === "today" ? " active" : "");
+  const th = document.getElementById("tab-history");
+  th.className = "pill" + (view === "history" ? " active" : "");
+  th.textContent = "History (" + state.sessions.length + ")";
+
+  const root = document.getElementById("view");
+  root.replaceChildren();
+
+  if (view === "today") {
+    const meta = el("div", { class: "meta" },
+      el("b", {}, "Week " + state.week + ": " + WEEK_META[state.week].label),
+      el("span", {}, doneSets() + "/" + totalSets() + " sets \u00B7 " + rounds() + " rounds"));
+    root.append(meta, el("p", { class: "hint" }, "Tap a bar to log a set at target. Tap it again to adjust the reps you actually got."));
+
+    for (const ex of EXERCISES) {
+      const arr = logFor(ex.id);
+      const card = el("section", { class: "card" + (arr.length === rounds() ? " done" : "") });
+      card.append(el("div", { class: "cardtop" },
+        el("div", {}, el("div", { class: "exname" }, ex.name), el("div", { class: "station" }, ex.station)),
+        el("div", { class: "target" }, el("b", {}, String(target(ex))), el("span", {}, " reps" + (ex.perLeg ? " / leg" : "")))));
+
+      const bars = el("div", { class: "bars" });
+      for (let i = 0; i < rounds(); i++) {
+        const logged = i < arr.length;
+        const isSel = selected && selected.id === ex.id && selected.idx === i;
+        const below = logged && arr[i] < target(ex);
+        const b = el("button", {
+          class: (logged ? "logged" : "") + (below ? " below" : "") + (isSel ? " sel" : ""),
+          "aria-label": ex.name + " set " + (i + 1) + (logged ? ", " + arr[i] + " reps" : ", not done"),
+          onclick: () => tapSet(ex.id, i),
+        }, logged ? String(arr[i]) : "\u00B7");
+        if (logged) { b.style.background = ex.color; b.style.borderColor = isSel ? "#1C1B1A" : ex.color; }
+        bars.append(b);
+      }
+      card.append(bars);
+
+      if (selected && selected.id === ex.id && selected.idx < arr.length) {
+        card.append(el("div", { class: "adjuster" },
+          el("span", { class: "lbl" }, "Set " + (selected.idx + 1)),
+          el("button", { class: "step", "aria-label": "One rep less", onclick: () => adjust(ex.id, selected.idx, -1) }, "\u2212"),
+          el("span", { class: "val" }, String(arr[selected.idx])),
+          el("button", { class: "step", "aria-label": "One rep more", onclick: () => adjust(ex.id, selected.idx, 1) }, "+"),
+          el("button", { class: "rm", onclick: () => removeSet(ex.id, selected.idx) }, "Remove")));
+      }
+      root.append(card);
+    }
+
+    const all = doneSets() === totalSets();
+    const fin = el("button", { class: "finish" + (all ? " all" : ""), onclick: finish },
+      all ? "Finish \u2014 full circuit \u2713" : "Finish workout (" + doneSets() + " sets)");
+    fin.disabled = doneSets() === 0;
+    root.append(fin);
+  } else {
+    if (state.sessions.length === 0) {
+      root.append(el("div", { class: "empty" }, "No sessions yet. Log your first circuit under Today's circuit."));
+    } else {
+      for (const s of state.sessions) {
+        root.append(el("div", { class: "card hrow" },
+          el("div", {},
+            el("div", { class: "exname", style: "font-size:15px" }, fmtDate(s.date)),
+            el("div", { class: "hsm" }, "Week " + s.week + (s.hitTargets ? " \u00B7 all targets hit \u2713" : ""))),
+          el("div", { style: "text-align:right" },
+            el("div", { class: "hbig" }, s.setsDone + "/" + s.totalSets + " sets"),
+            el("div", { class: "hsm" }, s.reps + " total reps"))));
+      }
+    }
+  }
+}
+
+document.getElementById("tab-today").addEventListener("click", () => { view = "today"; render(); });
+document.getElementById("tab-history").addEventListener("click", () => { view = "history"; render(); });
+document.getElementById("btn-export").addEventListener("click", () => {
+  const box = document.getElementById("backupbox");
+  box.value = JSON.stringify(state);
+  box.select();
+  try { navigator.clipboard.writeText(box.value); } catch (e) {}
+});
+document.getElementById("btn-import").addEventListener("click", () => {
+  const box = document.getElementById("backupbox");
+  try {
+    const d = JSON.parse(box.value);
+    if (!d || typeof d !== "object") throw new Error();
+    state = { week: d.week || 1, setLog: d.setLog || {}, sessions: d.sessions || [] };
+    save(); render();
+    box.value = "";
+  } catch (e) {
+    box.value = "Couldn't read that backup \u2014 paste the exact exported text.";
+  }
+});
+
+load();
+render();
+save();
+</script>
+</body>
+</html>
