@@ -33,6 +33,11 @@
   .savestatus.ok { color: #5E9E4D; }
   .savestatus.bad { color: #a33; }
 
+  .focusrow { display: flex; gap: 8px; margin: 4px 0 14px; }
+  .focusrow button { flex: 1; padding: 9px 0; border-radius: 8px; font-weight: 700; font-size: 13px; border: 2px solid #1C1B1A; background: transparent; color: #1C1B1A; }
+  .focusrow button.active { background: #1C1B1A; color: #EDEAE3; }
+  .focusrow small { display: block; font-size: 10px; font-weight: 400; opacity: 0.7; }
+
   .meta { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
   .meta b { font-size: 15px; }
   .meta span { font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -79,7 +84,7 @@
 <header>
   <div class="wrap">
     <h1>Outdoor Gym</h1>
-    <p class="sub">4-week circuit &middot; 2&ndash;3 sessions per week &middot; 60s rest between rounds</p>
+    <p class="sub">4-week plan &middot; alternate upper / lower days &middot; 60s rest between rounds</p>
     <div class="weektabs" id="weektabs" role="tablist" aria-label="Training week"></div>
   </div>
 </header>
@@ -109,26 +114,33 @@ const WEEK_META = {
   4: { rounds: 5, bonus: 2, label: "Peak week" },
 };
 const EXERCISES = [
-  { id: "pullups", name: "Pull-ups", station: "High bar", base: 5, color: "#E0589A" },
-  { id: "dips", name: "Dips", station: "Pink parallel bars", base: 6, color: "#E0589A" },
-  { id: "pushups", name: "Decline push-ups", station: "Angled bench", base: 10, color: "#3EB8B3" },
-  { id: "rows", name: "Ring rows", station: "Rings on blue rig", base: 10, color: "#3EB8B3" },
-  { id: "stepups", name: "Step-ups", station: "Low benches", base: 10, perLeg: true, color: "#5E9E4D" },
-  { id: "splits", name: "Split squats", station: "Rear foot on bench", base: 8, perLeg: true, color: "#5E9E4D" },
-  { id: "situps", name: "Incline sit-ups", station: "Angled bench", base: 12, color: "#D8A62A" },
-  { id: "raises", name: "Hanging knee raises", station: "Monkey bars", base: 10, color: "#D8A62A" },
+  { id: "pullups", name: "Pull-ups", station: "High bar", base: 5, group: "upper", color: "#E0589A" },
+  { id: "dips", name: "Dips", station: "Pink parallel bars", base: 6, group: "upper", color: "#E0589A" },
+  { id: "pushups", name: "Decline push-ups", station: "Angled bench", base: 10, group: "upper", color: "#3EB8B3" },
+  { id: "rows", name: "Ring rows", station: "Rings on blue rig", base: 10, group: "upper", color: "#3EB8B3" },
+  { id: "stepups", name: "Step-ups", station: "Low benches", base: 10, perLeg: true, group: "lower", color: "#5E9E4D" },
+  { id: "splits", name: "Split squats", station: "Rear foot on bench", base: 8, perLeg: true, group: "lower", color: "#5E9E4D" },
+  { id: "situps", name: "Incline sit-ups", station: "Angled bench", base: 12, group: "lower", color: "#D8A62A" },
+  { id: "raises", name: "Hanging knee raises", station: "Monkey bars", base: 10, group: "lower", color: "#D8A62A" },
 ];
+const FOCI = {
+  upper: { label: "Upper", sub: "push + pull", groups: ["upper"] },
+  lower: { label: "Lower + core", sub: "legs + core", groups: ["lower"] },
+  full: { label: "Full circuit", sub: "all 8", groups: ["upper", "lower"] },
+};
+const nextFocus = (f) => (f === "upper" ? "lower" : f === "lower" ? "upper" : "full");
 const KEY = "outdoor-gym-tracker-v1";
 
-let state = { week: 1, setLog: {}, sessions: [] };
+let state = { week: 1, focus: "upper", setLog: {}, sessions: [] };
 let view = "today";
 let selected = null;
 
 const target = (ex) => ex.base + WEEK_META[state.week].bonus;
 const rounds = () => WEEK_META[state.week].rounds;
 const logFor = (id) => (state.setLog[id] || []).slice(0, rounds());
-const doneSets = () => EXERCISES.reduce((s, ex) => s + logFor(ex.id).length, 0);
-const totalSets = () => EXERCISES.length * rounds();
+const activeExercises = () => EXERCISES.filter((ex) => FOCI[state.focus].groups.includes(ex.group));
+const doneSets = () => activeExercises().reduce((s, ex) => s + logFor(ex.id).length, 0);
+const totalSets = () => activeExercises().length * rounds();
 const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
 function load() {
@@ -136,7 +148,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      state = { week: d.week || 1, setLog: d.setLog || d.inProgress || {}, sessions: d.sessions || [] };
+      state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || d.inProgress || {}, sessions: d.sessions || [] };
     }
   } catch (e) {}
 }
@@ -175,17 +187,21 @@ function removeSet(exId, idx) {
 }
 function finish() {
   if (doneSets() === 0) return;
+  const exs = activeExercises();
   const session = {
     date: new Date().toISOString(),
     week: state.week,
+    focus: state.focus,
     setsDone: doneSets(),
     totalSets: totalSets(),
-    reps: EXERCISES.reduce((s, ex) => s + logFor(ex.id).reduce((a, b) => a + b, 0), 0),
-    hitTargets: EXERCISES.every((ex) => logFor(ex.id).length === rounds() && logFor(ex.id).every((r) => r >= target(ex))),
+    reps: exs.reduce((s, ex) => s + logFor(ex.id).reduce((a, b) => a + b, 0), 0),
+    hitTargets: exs.every((ex) => logFor(ex.id).length === rounds() && logFor(ex.id).every((r) => r >= target(ex))),
   };
+  const newLog = { ...state.setLog };
+  for (const ex of exs) delete newLog[ex.id];
   selected = null;
   view = "history";
-  set({ sessions: [session, ...state.sessions], setLog: {} });
+  set({ sessions: [session, ...state.sessions], setLog: newLog, focus: nextFocus(state.focus) });
 }
 
 function el(tag, attrs, ...kids) {
@@ -223,12 +239,24 @@ function render() {
   root.replaceChildren();
 
   if (view === "today") {
+    const focusRow = el("div", { class: "focusrow", role: "tablist", "aria-label": "Session focus" });
+    for (const key of ["upper", "lower", "full"]) {
+      const b = el("button", {
+        class: key === state.focus ? "active" : "", role: "tab",
+        "aria-selected": key === state.focus,
+        onclick: () => { selected = null; set({ focus: key }); },
+      });
+      b.innerHTML = FOCI[key].label + "<small>" + FOCI[key].sub + "</small>";
+      focusRow.append(b);
+    }
+    root.append(focusRow);
+
     const meta = el("div", { class: "meta" },
       el("b", {}, "Week " + state.week + ": " + WEEK_META[state.week].label),
       el("span", {}, doneSets() + "/" + totalSets() + " sets \u00B7 " + rounds() + " rounds"));
     root.append(meta, el("p", { class: "hint" }, "Tap a bar to log a set at target. Tap it again to adjust the reps you actually got."));
 
-    for (const ex of EXERCISES) {
+    for (const ex of activeExercises()) {
       const arr = logFor(ex.id);
       const card = el("section", { class: "card" + (arr.length === rounds() ? " done" : "") });
       card.append(el("div", { class: "cardtop" },
@@ -263,7 +291,7 @@ function render() {
 
     const all = doneSets() === totalSets();
     const fin = el("button", { class: "finish" + (all ? " all" : ""), onclick: finish },
-      all ? "Finish \u2014 full circuit \u2713" : "Finish workout (" + doneSets() + " sets)");
+      all ? "Finish \u2014 " + FOCI[state.focus].label + " done \u2713" : "Finish workout (" + doneSets() + " sets)");
     fin.disabled = doneSets() === 0;
     root.append(fin);
   } else {
@@ -274,7 +302,7 @@ function render() {
         root.append(el("div", { class: "card hrow" },
           el("div", {},
             el("div", { class: "exname", style: "font-size:15px" }, fmtDate(s.date)),
-            el("div", { class: "hsm" }, "Week " + s.week + (s.hitTargets ? " \u00B7 all targets hit \u2713" : ""))),
+            el("div", { class: "hsm" }, "Week " + s.week + " \u00B7 " + (FOCI[s.focus] ? FOCI[s.focus].label : "Full circuit") + (s.hitTargets ? " \u00B7 all targets hit \u2713" : ""))),
           el("div", { style: "text-align:right" },
             el("div", { class: "hbig" }, s.setsDone + "/" + s.totalSets + " sets"),
             el("div", { class: "hsm" }, s.reps + " total reps"))));
@@ -296,7 +324,7 @@ document.getElementById("btn-import").addEventListener("click", () => {
   try {
     const d = JSON.parse(box.value);
     if (!d || typeof d !== "object") throw new Error();
-    state = { week: d.week || 1, setLog: d.setLog || {}, sessions: d.sessions || [] };
+    state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || {}, sessions: d.sessions || [] };
     save(); render();
     box.value = "";
   } catch (e) {
