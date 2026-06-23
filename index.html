@@ -65,6 +65,7 @@
   .adjuster .rm { height: 36px; padding: 0 10px; border-radius: 8px; border: 2px solid #1C1B1A; background: transparent; font-size: 12px; font-weight: 600; }
 
   .bars button.neg { font-style: italic; opacity: 0.85; }
+  .lastrow { font-size: 11px; opacity: 0.5; margin-top: 7px; font-variant-numeric: tabular-nums; }
   .adjuster .negtog { height: 36px; padding: 0 10px; border-radius: 8px; border: 2px solid #1C1B1A; background: transparent; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
   .adjuster .negtog.on { background: #1C1B1A; color: #EDEAE3; }
 
@@ -147,6 +148,7 @@ const activeExercises = () => EXERCISES.filter((ex) => FOCI[state.focus].groups.
 const doneSets = () => activeExercises().reduce((s, ex) => s + logFor(ex.id).length, 0);
 const totalSets = () => activeExercises().length * rounds();
 const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const lastFor = (exId) => state.sessions.find((s) => s.sets && s.sets[exId] !== undefined);
 
 function load() {
   try {
@@ -294,6 +296,14 @@ function render() {
         bars.append(b);
       }
       card.append(bars);
+
+      const last = lastFor(ex.id);
+      if (last) {
+        const lReps = last.sets[ex.id];
+        const lNegs = (last.negLog && last.negLog[ex.id]) || [];
+        const txt = lReps.map((r, i) => (lNegs[i] ? "N" : "") + r).join(" · ");
+        card.append(el("p", { class: "lastrow" }, "Last: " + txt));
+      }
 
       if (selected && selected.id === ex.id && selected.idx < arr.length) {
         const selIsNeg = !!negs[selected.idx];
