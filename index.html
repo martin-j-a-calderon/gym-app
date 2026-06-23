@@ -64,6 +64,10 @@
   .adjuster .val { width: 56px; text-align: center; font-family: 'Archivo Black', sans-serif; font-size: 18px; font-variant-numeric: tabular-nums; }
   .adjuster .rm { height: 36px; padding: 0 10px; border-radius: 8px; border: 2px solid #1C1B1A; background: transparent; font-size: 12px; font-weight: 600; }
 
+  .bars button.neg { font-style: italic; opacity: 0.85; }
+  .adjuster .negtog { height: 36px; padding: 0 10px; border-radius: 8px; border: 2px solid #1C1B1A; background: transparent; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+  .adjuster .negtog.on { background: #1C1B1A; color: #EDEAE3; }
+
   .finish { width: 100%; margin-top: 8px; padding: 14px 0; border-radius: 12px; font-family: 'Archivo Black', sans-serif; font-size: 16px; text-transform: uppercase; border: 2px solid #1C1B1A; background: #1C1B1A; color: #EDEAE3; }
   .finish:disabled { background: #d8d4cb; color: #8a867d; }
   .finish.all { background: #5E9E4D; }
@@ -131,13 +135,14 @@ const FOCI = {
 const nextFocus = (f) => (f === "upper" ? "lower" : f === "lower" ? "upper" : "full");
 const KEY = "outdoor-gym-tracker-v1";
 
-let state = { week: 1, focus: "upper", setLog: {}, sessions: [] };
+let state = { week: 1, focus: "upper", setLog: {}, sessions: [], negLog: {} };
 let view = "today";
 let selected = null;
 
 const target = (ex) => ex.base + WEEK_META[state.week].bonus;
 const rounds = () => WEEK_META[state.week].rounds;
 const logFor = (id) => (state.setLog[id] || []).slice(0, rounds());
+const negFor = (id) => (state.negLog[id] || []).slice(0, rounds());
 const activeExercises = () => EXERCISES.filter((ex) => FOCI[state.focus].groups.includes(ex.group));
 const doneSets = () => activeExercises().reduce((s, ex) => s + logFor(ex.id).length, 0);
 const totalSets = () => activeExercises().length * rounds();
@@ -148,7 +153,7 @@ function load() {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw);
-      state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || d.inProgress || {}, sessions: d.sessions || [] };
+      state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || d.inProgress || {}, sessions: d.sessions || [], negLog: d.negLog || {} };
     }
   } catch (e) {}
 }
@@ -181,9 +186,16 @@ function adjust(exId, idx, d) {
   arr[idx] = Math.max(1, arr[idx] + d);
   set({ setLog: { ...state.setLog, [exId]: arr } });
 }
+function toggleSetNeg(exId, idx) {
+  const arr = [...(state.negLog[exId] || [])];
+  arr[idx] = !arr[idx];
+  set({ negLog: { ...state.negLog, [exId]: arr } });
+}
 function removeSet(exId, idx) {
   selected = null;
-  set({ setLog: { ...state.setLog, [exId]: logFor(exId).filter((_, i) => i !== idx) } });
+  const newNeg = { ...state.negLog };
+  if (newNeg[exId]) newNeg[exId] = newNeg[exId].filter((_, i) => i !== idx);
+  set({ setLog: { ...state.setLog, [exId]: logFor(exId).filter((_, i) => i !== idx) }, negLog: newNeg });
 }
 function finish() {
   if (doneSets() === 0) return;
@@ -197,12 +209,14 @@ function finish() {
     reps: exs.reduce((s, ex) => s + logFor(ex.id).reduce((a, b) => a + b, 0), 0),
     hitTargets: exs.every((ex) => logFor(ex.id).length === rounds() && logFor(ex.id).every((r) => r >= target(ex))),
     sets: Object.fromEntries(exs.map((ex) => [ex.id, logFor(ex.id).slice()])),
+    negLog: Object.fromEntries(exs.map((ex) => [ex.id, negFor(ex.id).slice()])),
   };
   const newLog = { ...state.setLog };
-  for (const ex of exs) delete newLog[ex.id];
+  const newNeg = { ...state.negLog };
+  for (const ex of exs) { delete newLog[ex.id]; delete newNeg[ex.id]; }
   selected = null;
   view = "history";
-  set({ sessions: [session, ...state.sessions], setLog: newLog, focus: nextFocus(state.focus) });
+  set({ sessions: [session, ...state.sessions], setLog: newLog, negLog: newNeg, focus: nextFocus(state.focus) });
 }
 
 function el(tag, attrs, ...kids) {
@@ -264,27 +278,31 @@ function render() {
         el("div", {}, el("div", { class: "exname" }, ex.name), el("div", { class: "station" }, ex.station)),
         el("div", { class: "target" }, el("b", {}, String(target(ex))), el("span", {}, " reps" + (ex.perLeg ? " / leg" : "")))));
 
+      const negs = negFor(ex.id);
       const bars = el("div", { class: "bars" });
       for (let i = 0; i < rounds(); i++) {
         const logged = i < arr.length;
         const isSel = selected && selected.id === ex.id && selected.idx === i;
         const below = logged && arr[i] < target(ex);
+        const isNegSet = logged && !!negs[i];
         const b = el("button", {
-          class: (logged ? "logged" : "") + (below ? " below" : "") + (isSel ? " sel" : ""),
-          "aria-label": ex.name + " set " + (i + 1) + (logged ? ", " + arr[i] + " reps" : ", not done"),
+          class: (logged ? "logged" : "") + (below ? " below" : "") + (isSel ? " sel" : "") + (isNegSet ? " neg" : ""),
+          "aria-label": ex.name + " set " + (i + 1) + (logged ? (isNegSet ? " negative," : ",") + " " + arr[i] + " reps" : ", not done"),
           onclick: () => tapSet(ex.id, i),
-        }, logged ? String(arr[i]) : "\u00B7");
+        }, logged ? (isNegSet ? "N" + arr[i] : String(arr[i])) : "\u00B7");
         if (logged) { b.style.background = ex.color; b.style.borderColor = isSel ? "#1C1B1A" : ex.color; }
         bars.append(b);
       }
       card.append(bars);
 
       if (selected && selected.id === ex.id && selected.idx < arr.length) {
+        const selIsNeg = !!negs[selected.idx];
         card.append(el("div", { class: "adjuster" },
           el("span", { class: "lbl" }, "Set " + (selected.idx + 1)),
           el("button", { class: "step", "aria-label": "One rep less", onclick: () => adjust(ex.id, selected.idx, -1) }, "\u2212"),
           el("span", { class: "val" }, String(arr[selected.idx])),
           el("button", { class: "step", "aria-label": "One rep more", onclick: () => adjust(ex.id, selected.idx, 1) }, "+"),
+          el("button", { class: "negtog" + (selIsNeg ? " on" : ""), onclick: () => toggleSetNeg(ex.id, selected.idx) }, "NEG"),
           el("button", { class: "rm", onclick: () => removeSet(ex.id, selected.idx) }, "Remove")));
       }
       root.append(card);
@@ -325,7 +343,7 @@ document.getElementById("btn-import").addEventListener("click", () => {
   try {
     const d = JSON.parse(box.value);
     if (!d || typeof d !== "object") throw new Error();
-    state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || {}, sessions: d.sessions || [] };
+    state = { week: d.week || 1, focus: FOCI[d.focus] ? d.focus : "upper", setLog: d.setLog || {}, sessions: d.sessions || [], negLog: d.negLog || {} };
     save(); render();
     box.value = "";
   } catch (e) {
