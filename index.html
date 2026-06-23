@@ -196,6 +196,7 @@ function finish() {
     totalSets: totalSets(),
     reps: exs.reduce((s, ex) => s + logFor(ex.id).reduce((a, b) => a + b, 0), 0),
     hitTargets: exs.every((ex) => logFor(ex.id).length === rounds() && logFor(ex.id).every((r) => r >= target(ex))),
+    sets: Object.fromEntries(exs.map((ex) => [ex.id, logFor(ex.id).slice()])),
   };
   const newLog = { ...state.setLog };
   for (const ex of exs) delete newLog[ex.id];
